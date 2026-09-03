@@ -32,10 +32,20 @@ export function calculateHabitStreak(habit: Habit): number {
 
   const completedDates = new Set(habit.completionHistory.map((r) => r.date))
 
+  // For weekly habits: count consecutive weeks instead of days
+  if (habit.frequency === 'weekly') {
+    return calculateWeeklyStreak(completedDates)
+  }
+
+  return calculateDailyStreak(completedDates)
+}
+
+function calculateDailyStreak(completedDates: Set<string>): number {
   let streak = 0
   const cursor = new Date()
+  cursor.setHours(0, 0, 0, 0)
 
-  // If not completed today, start checking from yesterday
+  // If not done today, allow grace: start from yesterday
   if (!completedDates.has(toDateString(cursor))) {
     cursor.setDate(cursor.getDate() - 1)
   }
@@ -43,6 +53,46 @@ export function calculateHabitStreak(habit: Habit): number {
   while (completedDates.has(toDateString(cursor))) {
     streak++
     cursor.setDate(cursor.getDate() - 1)
+    // Safety: never go back more than 10 years
+    if (streak > 3650) break
+  }
+
+  return streak
+}
+
+function calculateWeeklyStreak(completedDates: Set<string>): number {
+  // Get the Monday of a given date's week
+  function getWeekStart(date: Date): string {
+    const d = new Date(date)
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    d.setDate(diff)
+    return toDateString(d)
+  }
+
+  const weeks = new Set(
+    Array.from(completedDates).map((dateStr) =>
+      getWeekStart(new Date(dateStr))
+    )
+  )
+
+  let streak = 0
+  const cursor = new Date()
+  cursor.setHours(0, 0, 0, 0)
+
+  let weekStart = getWeekStart(cursor)
+
+  // If current week has no completion yet, start from last week
+  if (!weeks.has(weekStart)) {
+    cursor.setDate(cursor.getDate() - 7)
+    weekStart = getWeekStart(cursor)
+  }
+
+  while (weeks.has(weekStart)) {
+    streak++
+    cursor.setDate(cursor.getDate() - 7)
+    weekStart = getWeekStart(cursor)
+    if (streak > 520) break // 10 years of weeks
   }
 
   return streak
@@ -107,4 +157,23 @@ export function xpEarnedLastNDays(records: CompletionRecord[], n: number): numbe
   return records
     .filter((r) => new Date(r.timestamp) >= cutoff)
     .reduce((sum, r) => sum + r.xpEarned, 0)
+}
+
+export function todayCompletionRate(habits: Habit[]): number {
+  const dailyHabits = habits.filter((h) => !h.archived && h.frequency === 'daily')
+  if (dailyHabits.length === 0) return 0
+  const todayStr = today()
+  const completed = dailyHabits.filter((h) =>
+    h.completionHistory.some((r) => r.date === todayStr)
+  ).length
+  return completed / dailyHabits.length
+}
+
+export function todayCompletionCount(habits: Habit[]): { completed: number; total: number } {
+  const dailyHabits = habits.filter((h) => !h.archived && h.frequency === 'daily')
+  const todayStr = today()
+  const completed = dailyHabits.filter((h) =>
+    h.completionHistory.some((r) => r.date === todayStr)
+  ).length
+  return { completed, total: dailyHabits.length }
 }
