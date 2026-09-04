@@ -12,7 +12,7 @@ app.use(
   })
 )
 
-app.post('/api/claude', async (c) => {
+app.post('/api/ai', async (c) => {
   const apiKey = c.env?.GEMINI_API_KEY ?? process.env.GEMINI_API_KEY
   if (!apiKey) {
     return c.json({ error: 'GEMINI_API_KEY not set' }, 500)

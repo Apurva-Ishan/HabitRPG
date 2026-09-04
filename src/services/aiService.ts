@@ -1,6 +1,7 @@
 import type { AIUserContext } from "@/lib/aiContext";
+import type { AIWeeklyReview } from "@/types";
 
-const PROXY_URL = "http://localhost:3000/api/claude";
+const PROXY_URL = "http://localhost:3000/api/ai";
 const MAX_TOKENS = 2048;
 
 export interface AIMessage {
@@ -8,9 +9,9 @@ export interface AIMessage {
   content: string;
 }
 
-// ── Weekly Review ────────────────────────────────────────────────────────────
+// ── Weekly Review ─────────────────────────────────────────────────────────────
 
-export interface WeeklyReview {
+interface WeeklyReviewPayload {
   summary: string;
   strengths: string[];
   weaknesses: string[];
@@ -19,7 +20,7 @@ export interface WeeklyReview {
 
 export async function fetchWeeklyReview(
   context: AIUserContext,
-): Promise<WeeklyReview | null> {
+): Promise<AIWeeklyReview | null> {
   const prompt = `You are an expert productivity coach. Analyse this user's habit data and return a weekly review as JSON only — no markdown, no preamble.
 
 User context:
@@ -33,10 +34,12 @@ Respond with exactly this shape:
   "recommendations": ["actionable tip 1", "actionable tip 2", "actionable tip 3"]
 }`;
 
-  return callClaude<WeeklyReview>(prompt);
+  const review = await callAI<WeeklyReviewPayload>(prompt);
+  if (!review) return null;
+  return { ...review, generatedAt: new Date().toISOString() };
 }
 
-// ── Habit Suggestions ────────────────────────────────────────────────────────
+// ── Habit Suggestions ─────────────────────────────────────────────────────────
 
 export interface AIHabitSuggestion {
   name: string;
@@ -77,10 +80,10 @@ Rules:
 - Do not suggest habits the user already has
 - Match difficulty to the user's preferredDifficulty where appropriate`;
 
-  return callClaude<AIHabitSuggestion[]>(prompt);
+  return callAI<AIHabitSuggestion[]>(prompt);
 }
 
-// ── Quest Suggestions ────────────────────────────────────────────────────────
+// ── Quest Suggestions ─────────────────────────────────────────────────────────
 
 export interface AIQuestSuggestion {
   title: string;
@@ -112,10 +115,10 @@ Rules:
 - Quests should be completable today
 - Reference the user's actual habits where possible`;
 
-  return callClaude<AIQuestSuggestion[]>(prompt);
+  return callAI<AIQuestSuggestion[]>(prompt);
 }
 
-// ── Chat ─────────────────────────────────────────────────────────────────────
+// ── Chat ──────────────────────────────────────────────────────────────────────
 
 export async function fetchChatReply(
   context: AIUserContext,
@@ -128,18 +131,17 @@ Be concise, specific, and actionable. Reference the user's actual habits and sta
 User context:
 ${JSON.stringify(context, null, 2)}`;
 
-  return callClaudeChat<string>(system, history);
+  return callAIChat(system, history);
 }
 
-// ── Core fetch helpers ───────────────────────────────────────────────────────
+// ── Core fetch helpers ────────────────────────────────────────────────────────
 
-async function callClaude<T>(userPrompt: string): Promise<T | null> {
+async function callAI<T>(userPrompt: string): Promise<T | null> {
   try {
     const res = await fetch(PROXY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: MODEL,
         max_tokens: MAX_TOKENS,
         messages: [{ role: "user", content: userPrompt }],
       }),
@@ -159,10 +161,10 @@ async function callClaude<T>(userPrompt: string): Promise<T | null> {
   }
 }
 
-async function callClaudeChat<T extends string>(
+async function callAIChat(
   system: string,
   history: AIMessage[],
-): Promise<T | null> {
+): Promise<string | null> {
   try {
     const res = await fetch(PROXY_URL, {
       method: "POST",
@@ -174,12 +176,10 @@ async function callClaudeChat<T extends string>(
       }),
     });
 
-    console.log("proxy status:", res.status);
     const data = await res.json();
-    console.log("proxy response:", JSON.stringify(data, null, 2));
 
     if (!res.ok) return null;
-    return (data.content?.[0]?.text ?? null) as T | null;
+    return data.content?.[0]?.text ?? null;
   } catch (err) {
     console.error("aiService error:", err);
     return null;
