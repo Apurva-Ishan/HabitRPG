@@ -9,9 +9,9 @@ import { toast } from "sonner";
 import { useGamificationStore } from "@/stores/useGamificationStore";
 
 const navItems = [
-  { to: "/", label: "🏠 Home", end: true },
+  { to: "/", label: "🏠 Dashboard", end: true },
   { to: "/habits", label: "✅ Habits" },
-  { to: "/quests", label: "⚔️ abncd" },
+  { to: "/quests", label: "⚔️ Quests" },
   { to: "/achievements", label: "🏆 Achievements" },
   { to: "/statistics", label: "📊 Statistics" },
   { to: "/ai-coach", label: "🤖 AI Coach" },
