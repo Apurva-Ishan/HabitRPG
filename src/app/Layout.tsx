@@ -11,7 +11,7 @@ import { useGamificationStore } from "@/stores/useGamificationStore";
 const navItems = [
   { to: "/", label: "🏠 Home", end: true },
   { to: "/habits", label: "✅ Habits" },
-  { to: "/quests", label: "⚔️ Quests" },
+  { to: "/quests", label: "⚔️ abncd" },
   { to: "/achievements", label: "🏆 Achievements" },
   { to: "/statistics", label: "📊 Statistics" },
   { to: "/ai-coach", label: "🤖 AI Coach" },
